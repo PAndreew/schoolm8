@@ -1,0 +1,110 @@
+[
+    {
+        "filepath": ".\\GraphRAG.py",
+        "docstrings": [
+            {
+                "type": "ClassDef",
+                "name": "CustomRetriever",
+                "docstring": "Custom retriever that performs both Vector search and Knowledge Graph search"
+            },
+            {
+                "type": "FunctionDef",
+                "name": "__init__",
+                "docstring": "Init params."
+            },
+            {
+                "type": "FunctionDef",
+                "name": "_retrieve",
+                "docstring": "Retrieve nodes given query."
+            }
+        ]
+    },
+    {
+        "filepath": ".\\text_embedding_service\\embed_model.py",
+        "docstrings": [
+            {
+                "type": "FunctionDef",
+                "name": "generate_embeddings",
+                "docstring": "Generates embeddings for the given cleaned text.\n\nArgs:\n    cleaned_text: Preprocessed and cleaned text string.\n\nReturns:\n    A numpy array containing the generated embeddings, or None if generation fails."
+            }
+        ]
+    },
+    {
+        "filepath": ".\\text_embedding_service\\main.py",
+        "docstrings": []
+    },
+    {
+        "filepath": ".\\topic_extraction_service\\main.py",
+        "docstrings": []
+    },
+    {
+        "filepath": ".\\topic_extraction_service\\text_processor.py",
+        "docstrings": [
+            {
+                "type": "FunctionDef",
+                "name": "__init__",
+                "docstring": "Initialize TextProcessor with a specific NLP model.\n\n:param nlp_model: The NLP model to be used for text processing."
+            },
+            {
+                "type": "FunctionDef",
+                "name": "extract_text",
+                "docstring": "Extract text from a PDF file.\n\n:param file_path: Path to the PDF file.\n:return: Extracted text or None if an error occurs."
+            },
+            {
+                "type": "FunctionDef",
+                "name": "clean_text",
+                "docstring": "Clean and preprocess the text.\n\n:param raw_text: The raw text to be cleaned.\n:return: Cleaned and preprocessed text."
+            },
+            {
+                "type": "FunctionDef",
+                "name": "_unicode_normalize",
+                "docstring": "Normalize unicode characters in the text.\n\n:param text: The text to be normalized.\n:return: Unicode normalized text."
+            },
+            {
+                "type": "FunctionDef",
+                "name": "_remove_non_unicode",
+                "docstring": "Remove non-unicode characters from the text.\n\n:param text: The text from which non-unicode characters should be removed.\n:return: Text with non-unicode characters removed."
+            },
+            {
+                "type": "FunctionDef",
+                "name": "_lowercase",
+                "docstring": "Convert the text to lowercase.\n\n:param text: The text to be converted to lowercase.\n:return: Lowercased text."
+            },
+            {
+                "type": "FunctionDef",
+                "name": "_tokenize",
+                "docstring": "Tokenize the text using the NLP model.\n\n:param text: The text to be tokenized.\n:return: List of tokens."
+            },
+            {
+                "type": "FunctionDef",
+                "name": "_remove_stopwords",
+                "docstring": "Remove stopwords from the list of tokens.\n\n:param tokens: The list of tokens from which stopwords should be removed.\n:return: List of tokens with stopwords removed."
+            },
+            {
+                "type": "FunctionDef",
+                "name": "_remove_punctuation",
+                "docstring": "Remove punctuation from the list of tokens.\n\n:param tokens: The list of tokens from which punctuation should be removed.\n:return: List of tokens with punctuation removed."
+            },
+            {
+                "type": "FunctionDef",
+                "name": "_lemmatize",
+                "docstring": "Lemmatize the list of tokens using the NLP model.\n\n:param tokens: The list of tokens to be lemmatized.\n:return: String of lemmatized tokens joined by spaces."
+            }
+        ]
+    },
+    {
+        "filepath": ".\\topic_extraction_service\\topic_model.py",
+        "docstrings": [
+            {
+                "type": "FunctionDef",
+                "name": "extract_topics",
+                "docstring": "Extracts topics from the given cleaned text using LDA.\n\nArgs:\n    cleaned_text: Preprocessed and cleaned text string.\n\nReturns:\n    A list of topics with their respective weights, or None if extraction fails."
+            },
+            {
+                "type": "FunctionDef",
+                "name": "_get_topics",
+                "docstring": "Internal method to get the topics from the LDA model.\n\nArgs:\n    feature_names: List of feature names from the vectorizer.\n\nReturns:\n    A list of topics with their respective weights."
+            }
+        ]
+    }
+]

@@ -13,6 +13,9 @@ try:
 except Exception as e:
     logging.error(f"An error occurred while loading spaCy model: {e}")
 
+def clean_text(text):
+    return text.replace('\n', ' ').replace('\r', '').strip()
+
 def tokenize(text: str) -> list:
     try:
         doc = nlp(text)
@@ -22,6 +25,44 @@ def tokenize(text: str) -> list:
     except Exception as e:
         logging.error(f"An error occurred during tokenization: {e}")
         return None
+
+import re
+
+def remove_emails(text: str) -> str:
+    """
+    Remove email addresses from the text.
+
+    Parameters:
+        text (str): The input text.
+
+    Returns:
+        str: The text with email addresses removed.
+    """
+    return re.sub(r'\S*@\S*\s?', '', text)
+
+def remove_urls(text: str) -> str:
+    """
+    Remove URLs from the text.
+
+    Parameters:
+        text (str): The input text.
+
+    Returns:
+        str: The text with URLs removed.
+    """
+    return re.sub(r'http\S+', '', text)
+
+def remove_numbers(text: str) -> str:
+    """
+    Remove numbers from the text.
+
+    Parameters:
+        text (str): The input text.
+
+    Returns:
+        str: The text with numbers removed.
+    """
+    return re.sub(r'\d+', '', text)
 
 def remove_stopwords(tokens: list) -> list:
     try:

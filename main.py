@@ -1,15 +1,15 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Json
 from tortoise import Tortoise
 from tortoise.contrib.fastapi import register_tortoise
 
 from database.db_operations import save_topics
 from database.models import TopicDataMapping
 from services.milvus_service import init_milvus, close_milvus, store_vectors
-from services.text_extraction import extract_text
+from services.text_extraction import extract_text, extract_book_title_from_path
 from services.text_normalization import unicode_normalize, remove_non_unicode, lowercase
-from services.text_analysis import tokenize, remove_stopwords, remove_punctuation, lemmatize
-from services.vectorization import perform_lda, generate_vector_representation
+from services.text_analysis import tokenize, remove_stopwords, remove_punctuation, lemmatize, clean_text, remove_emails, remove_numbers, remove_urls
+from services.vectorization import perform_lda, generate_vector_representation, extract_topics
 # from services.search_service import perform_search
 from fastapi.responses import JSONResponse
 from typing import Optional
@@ -31,59 +31,75 @@ async def close():
 
 app.add_event_handler("startup", init)
 app.add_event_handler("shutdown", close)
-app.add_event_handler("startup", init_milvus)
-app.add_event_handler("shutdown", close_milvus)
+# app.add_event_handler("startup", init_milvus)
+# app.add_event_handler("shutdown", close_milvus)
 
 
-class TopicData(BaseModel):
+class TopicDataMapping(BaseModel):
+    id: int
     book_id: str
-    topics: list
-    vector_ids: list  # These can be Milvus IDs for faster vector retrieval.
+    book_title: str
+    topic: Json
+    # vector_id: int
 
 # Initialize logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 @app.post("/process_pdf/")
-async def process_pdf(file: UploadFile = File(...), book_id: Optional[str] = None):
+async def process_pdf(file: UploadFile = File(...), book_id: Optional[str] = None, book_title: Optional[str] = None):
     try:
+        # Step 0: Extract book title
+        book_title = extract_book_title_from_path(file.filename)
+        print(book_title)
+
         # Step 1: Extract Text
         text = extract_text(file.file)
         if text is None:
             raise Exception("Text extraction failed")
-
+        # print(text)
         # Step 2: Normalize and Clean Text
         normalized_text = unicode_normalize(text)
-        cleaned_text = remove_non_unicode(normalized_text)
-        lower_text = lowercase(cleaned_text)
+        text_without_non_unicode = remove_non_unicode(normalized_text)
+        lower_text = lowercase(text_without_non_unicode)
+        cleaned_text = clean_text(lower_text)
+        text_without_urls = remove_urls(cleaned_text)
+        text_without_emails = remove_emails(text_without_urls)
+        text_without_numbers = remove_numbers(text_without_emails)
 
         # Step 3: Tokenization and Further Cleaning
-        tokens = tokenize(lower_text)
+        tokens = tokenize(text_without_numbers)
         cleaned_tokens = remove_stopwords(tokens)
         cleaned_tokens = remove_punctuation(cleaned_tokens)
         lemmatized_tokens = lemmatize(cleaned_tokens)
+        # print(lemmatized_tokens)
 
         # Step 4: Perform LDA and Save Topics
-        lda_result = perform_lda(lemmatized_tokens)
+        lda, feature_names = perform_lda(lemmatized_tokens)
+        # print(lda, feature_names)
+        print(lda.components_.shape)
+        print(len(feature_names))
+
+
+        # Step 5: Extract and serialise the topics
+        serialised_topics = extract_topics(lda, feature_names)
+        print(serialised_topics)
         book_id = book_id if book_id else str(uuid.uuid4())
-        await save_topics(book_id, lda_result)
+        await save_topics(book_id, book_title, serialised_topics)
 
-        # Step 5: Generate Vectors
-        vectors = generate_vector_representation(lemmatized_tokens)
-        vector_ids = store_vectors("text_collection", vectors)
+        # # Step 5: Generate Vectors
+        # vectors = generate_vector_representation(lemmatized_tokens)
+        # vector_ids = store_vectors("text_collection", vectors)
 
-        # Step 6: Store vector_ids with book_id
-        topic_data = TopicData(book_id=book_id, topics=lda_result, vector_ids=vector_ids)
-        await add_topics_endpoint(topic_data)
+        # # Step 6: Store vector_ids with book_id
+        # topic_data = TopicDataMapping(book_id=book_id, topics=lda_result, vector_ids=vector_ids)
+        # await add_topics_endpoint(topic_data)
         
         return {"status": "success", "book_id": book_id}
 
     except Exception as e:
         logger.error(f"An error occurred: {e}")
         raise HTTPException(status_code=500, detail="An error occurred while processing the PDF")
-
-# Your existing code, including the Tortoise setup and other endpoints, remains the same.
-
 
 @app.post("/extract_text/")
 async def extract_text_endpoint(file: UploadFile = File(...)):
@@ -187,9 +203,37 @@ register_tortoise(
     add_exception_handlers=True,
 )
 
-if __name__ == "__main__":
-    # Use this for debugging purposes only
-    logger.warning("Running in development mode. Do not run like this in production.")
-    import uvicorn  # type: ignore
+import requests
+from typing import Dict, Any
 
-    uvicorn.run(app, host="localhost", port=8001, log_level="debug")
+def call_process_pdf_endpoint(url: str, file_path: str) -> Dict[str, Any]:
+    """
+    Calls the process_pdf FastAPI endpoint to upload a PDF file and process it.
+
+    Parameters:
+        url (str): The URL of the FastAPI endpoint.
+        file_path (str): The file path of the PDF to be uploaded.
+
+    Returns:
+        Dict[str, Any]: The JSON response from the FastAPI endpoint.
+    """
+    try:
+        with open(file_path, 'rb') as f:
+            files = {'file': f}
+            response = requests.post(url, files=files)
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            print(f"Failed to process PDF. Status code: {response.status_code}, Message: {response.text}")
+            return {}
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return {}
+
+if __name__ == "__main__":
+    url = "http://127.0.0.1:8001/process_pdf/"
+    # file_path = r"C:\Users\uif56391\Downloads\OH-KEM78TA_I__teljes.pdf"
+    file_path = r"C:\Users\uif56391\Downloads\Resume_Andras_Pasztor.pdf"
+    response = call_process_pdf_endpoint(url, file_path)
+    print(response)

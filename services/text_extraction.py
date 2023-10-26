@@ -1,8 +1,18 @@
 import fitz
 import logging
+import os
 
 # Initialize logging
 logging.basicConfig(filename='text_extraction.log', level=logging.INFO)
+
+def extract_book_title_from_path(file_path: str) -> str:
+    # Extract the filename from the path
+    filename = os.path.basename(file_path)
+    
+    # Remove the file extension to get the title
+    book_title = os.path.splitext(filename)[0]
+    
+    return book_title
 
 def extract_text(file):
     try:

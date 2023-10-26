@@ -14,10 +14,12 @@ async def init_milvus():
     id_field = FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=True)
     vector_field = FieldSchema(name="embedding", dtype=DataType.FLOAT_VECTOR, dim=dim, description="Vector field")
     
-    schema = CollectionSchema(fields=[id_field, vector_field], description="Text Collection")
+    fields = [id_field, vector_field]  # List of fields
+    
+    # schema = CollectionSchema(fields=fields, description="text_collection")  # Pass the list of fields here
     
     # Create the collection
-    milvus.create_collection(collection_name, schema=schema)
+    milvus.create_collection(collection_name, fields=fields)
 
 async def close_milvus():
     global milvus

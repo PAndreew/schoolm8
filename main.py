@@ -2,6 +2,8 @@ from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
 from pydantic import BaseModel, Json
 from tortoise import Tortoise
 from tortoise.contrib.fastapi import register_tortoise
+from tortoise.exceptions import DoesNotExist
+from tortoise.functions import Count
 
 from database.db_operations import save_topics
 from database.models import TopicDataMapping
@@ -10,9 +12,10 @@ from services.text_extraction import extract_text, extract_book_title_from_path
 from services.text_normalization import unicode_normalize, remove_non_unicode, lowercase
 from services.text_analysis import tokenize, remove_stopwords, remove_punctuation, lemmatize, clean_text, remove_emails, remove_numbers, remove_urls
 from services.vectorization import perform_lda, generate_vector_representation, extract_topics
+from services.llm_generation import generate_composition_questions
 # from services.search_service import perform_search
 from fastapi.responses import JSONResponse
-from typing import Optional
+from typing import Optional, List
 import logging
 import uuid
 
@@ -42,9 +45,24 @@ class TopicDataMapping(BaseModel):
     topic: Json
     # vector_id: int
 
+class CompositionRequest(BaseModel):
+    topics: List[str]
+    number_of_questions: int
+    type_of_questions: str
+
 # Initialize logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+@app.post("/generate_composition/")
+async def generate_composition(request: CompositionRequest):
+    topics = request.topics
+    number_of_questions = request.number_of_questions
+    type_of_questions = request.type_of_questions
+
+    generated_text = generate_composition_questions(topics, number_of_questions, type_of_questions)
+    
+    return {"generated_text": generated_text}
 
 @app.post("/process_pdf/")
 async def process_pdf(file: UploadFile = File(...), book_id: Optional[str] = None, book_title: Optional[str] = None):
@@ -87,7 +105,7 @@ async def process_pdf(file: UploadFile = File(...), book_id: Optional[str] = Non
         book_id = book_id if book_id else str(uuid.uuid4())
         await save_topics(book_id, book_title, serialised_topics)
 
-        # # Step 5: Generate Vectors
+        # # Step 6: Generate Vectors
         # vectors = generate_vector_representation(lemmatized_tokens)
         # vector_ids = store_vectors("text_collection", vectors)
 
@@ -192,8 +210,41 @@ async def add_topics_endpoint(topic_data: TopicDataMapping):
 
 @app.get("/get_topics/{book_id}")
 async def get_topics_endpoint(book_id: str):
-    # Logic to retrieve topics from database
-    return {"topics": "Placeholder"}
+    try:
+        # Fetch topics from the database using Tortoise ORM
+        query = await TopicDataMapping.filter(book_id=book_id).all()
+        
+        if not query:
+            return {"status": "error", "message": "No topics found for the given book_id"}
+        
+        # Serialize the query result to JSON
+        topics = [topic.topic for topic in query]
+        
+        return {"status": "success", "topics": topics}
+        
+    except DoesNotExist:
+        return {"status": "error", "message": "Book ID does not exist"}
+    except Exception as e:
+        return {"status": "error", "message": f"An error occurred: {e}"}
+
+@app.get("/get_books/")
+async def get_books_endpoint():
+    try:
+        # Fetch distinct book titles from the database using Tortoise ORM
+        query = await TopicDataMapping.annotate(count=Count('book_title')).filter().values('book_title', 'count').distinct()
+        
+        if not query:
+            return {"status": "error", "message": "No books found"}
+        
+        # Serialize the query result to JSON
+        books = [book['book_title'] for book in query]
+        
+        return {"status": "success", "books": books}
+        
+    except DoesNotExist:
+        return {"status": "error", "message": "No books found"}
+    except Exception as e:
+        return {"status": "error", "message": f"An error occurred: {e}"}
 
 register_tortoise(
     app,

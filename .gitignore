@@ -65,3 +65,8 @@ data/
 
 # Environment files
 .env
+
+# Executables
+*.exe
+
+# Pydeck

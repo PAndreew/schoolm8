@@ -4,29 +4,30 @@ import streamlit as st
 # Define the FastAPI backend URL
 backend_url = "http://localhost:8001"
 
-# Fetch books from the FastAPI backend
 def fetch_books():
-    response = requests.get(f"{backend_url}/get_books")
+    response = requests.get(f"{backend_url}/books")
     return response.json().get("books", [])
 
-# Fetch topics from the FastAPI backend
-def fetch_topics():
-    response = requests.get(f"{backend_url}/get_topics")
-    return response.json()
+def fetch_topics(book_id):
+    response = requests.get(f"{backend_url}/get_topics/{book_id}")
+    return response.json().get("topics", [])
 
 # Streamlit app
 st.title("Question Generator")
 
 # Fetch and display available books
 available_books = fetch_books()
-selected_book = st.selectbox("Select Book", available_books)
+book_options = {book['book_title']: book['book_id'] for book in available_books}
+selected_book_title = st.selectbox("Select Book", list(book_options.keys()))
 
 # Number of questions
 num_questions = st.number_input("Number of Questions", min_value=1, max_value=100, value=10)
 
 # Topics
-available_topics = fetch_topics()
-selected_topics = st.multiselect("Topics", available_topics)
+if selected_book_title:
+    selected_book_id = book_options[selected_book_title]
+    available_topics = fetch_topics(selected_book_id)
+    selected_topics = st.multiselect("Topics", available_topics)
 
 # Type of questions
 question_type = st.selectbox("Type of Questions", ["Egyszeres választós", "Többszörös választós", "Kifejtős"])

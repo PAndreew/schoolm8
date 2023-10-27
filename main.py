@@ -1,4 +1,5 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
+from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, status
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Json
 from tortoise import Tortoise
 from tortoise.contrib.fastapi import register_tortoise
@@ -6,7 +7,7 @@ from tortoise.exceptions import DoesNotExist
 from tortoise.functions import Count
 
 from database.db_operations import save_topics
-from database.models import TopicDataMapping
+from database.models import TopicDataMapping as TopicDataMappingTortoise
 from services.milvus_service import init_milvus, close_milvus, store_vectors
 from services.text_extraction import extract_text, extract_book_title_from_path
 from services.text_normalization import unicode_normalize, remove_non_unicode, lowercase
@@ -18,9 +19,40 @@ from fastapi.responses import JSONResponse
 from typing import Optional, List
 import logging
 import uuid
+import uvicorn
+import sys
 
+logger = logging.getLogger(__name__)
+
+def configure_logging():
+    # Configure your logger
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s %(name)s %(levelname)s: %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+
+    # Also configure Uvicorn's log formatting if needed
+    uvicorn_logger = logging.getLogger("uvicorn.access")
+    console_formatter = uvicorn.logging.ColourizedFormatter(
+        "{asctime} {levelprefix} : {message}",
+        style="{", use_colors=True
+    )
+    uvicorn_logger.handlers[0].setFormatter(console_formatter)
 
 app = FastAPI()
+
+origins = [
+    "http://localhost:8501",  # Allow requests from your Streamlit app
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,  # Allows requests from the origins specified above
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all HTTP methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 async def init():
     await Tortoise.init(
@@ -33,6 +65,7 @@ async def close():
     await Tortoise.close_connections()
 
 app.add_event_handler("startup", init)
+app.add_event_handler("startup", configure_logging)
 app.add_event_handler("shutdown", close)
 # app.add_event_handler("startup", init_milvus)
 # app.add_event_handler("shutdown", close_milvus)
@@ -212,7 +245,7 @@ async def add_topics_endpoint(topic_data: TopicDataMapping):
 async def get_topics_endpoint(book_id: str):
     try:
         # Fetch topics from the database using Tortoise ORM
-        query = await TopicDataMapping.filter(book_id=book_id).all()
+        query = await TopicDataMappingTortoise.filter(book_id=book_id).all()
         
         if not query:
             return {"status": "error", "message": "No topics found for the given book_id"}
@@ -227,24 +260,21 @@ async def get_topics_endpoint(book_id: str):
     except Exception as e:
         return {"status": "error", "message": f"An error occurred: {e}"}
 
-@app.get("/get_books/")
+@app.get("/books/")
 async def get_books_endpoint():
-    try:
-        # Fetch distinct book titles from the database using Tortoise ORM
-        query = await TopicDataMapping.annotate(count=Count('book_title')).filter().values('book_title', 'count').distinct()
-        
-        if not query:
-            return {"status": "error", "message": "No books found"}
-        
-        # Serialize the query result to JSON
-        books = [book['book_title'] for book in query]
-        
-        return {"status": "success", "books": books}
-        
-    except DoesNotExist:
-        return {"status": "error", "message": "No books found"}
-    except Exception as e:
-        return {"status": "error", "message": f"An error occurred: {e}"}
+    # try:
+    # A simplified query to fetch distinct book titles.
+    query = await TopicDataMappingTortoise.all().distinct().values('book_id', 'book_title')
+    print(query)  # This will print the query result to the console
+
+    if not query:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No books found")
+
+    return {"status": "success", "books": query}
+    # except DoesNotExist:
+    #     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No books found")
+    # except Exception as e:
+    #     raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"An error occurred: {e}")
 
 register_tortoise(
     app,

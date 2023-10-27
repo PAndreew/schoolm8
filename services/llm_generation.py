@@ -1,8 +1,11 @@
 import openai
-import dotenv
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 def generate_composition_questions(topics, number_of_questions, type_of_questions):
-    openai.api_key = "your-openai-api-key"
+    openai.api_key = os.getenv("OPENAI_API_KEY")
 
     json_example = '''{
     "timestamp": "2023-10-26T14:30:00Z",

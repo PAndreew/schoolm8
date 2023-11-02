@@ -4,7 +4,7 @@ import os
 
 load_dotenv()
 
-def generate_composition_questions(topics, number_of_questions, type_of_questions):
+def generate_composition_questions(topics, number_of_questions, type_of_questions, grade):
     openai.api_key = os.getenv("OPENAI_API_KEY")
 
     json_example = '''{
@@ -33,16 +33,22 @@ def generate_composition_questions(topics, number_of_questions, type_of_question
     }'''
 
     prompt = f"As an AI trained in educational assistance, I am tasked with helping students create school compositions. \
-    Based on the provided topics: {topics}, I shall generate {number_of_questions} questions of type {type_of_questions} to assist in writing a composition. \
+    Based on the provided topics: {topics}, I shall generate {number_of_questions} questions of type {type_of_questions} for {grade} students to assist in writing a composition. \
     I shall ALWAYS create the questions in Hungarian. \
     I shall ALWAYS respond in valid JSON format. \
     Here's a good example: {json_example}"
 
 
-    response = openai.Completion.create(
-      engine="gpt3.5-turbo",
-      prompt=prompt,
-      max_tokens=100
+    response = openai.ChatCompletion.create(  
+      model="gpt-3.5-turbo",
+      messages=[{
+          "role": "system",
+          "content": "You are a helpful assistant."
+      },{
+          "role": "user",
+          "content": prompt
+      }]
     )
 
-    return response.choices[0].text.strip()
+    return response['choices'][0]['message']['content'].strip()
+

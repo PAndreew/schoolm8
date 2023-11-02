@@ -82,6 +82,7 @@ class CompositionRequest(BaseModel):
     topics: List[str]
     number_of_questions: int
     type_of_questions: str
+    grade: str
 
 # Initialize logging
 logging.basicConfig(level=logging.INFO)
@@ -92,8 +93,9 @@ async def generate_composition(request: CompositionRequest):
     topics = request.topics
     number_of_questions = request.number_of_questions
     type_of_questions = request.type_of_questions
+    grade = request.grade
 
-    generated_text = generate_composition_questions(topics, number_of_questions, type_of_questions)
+    generated_text = generate_composition_questions(topics, number_of_questions, type_of_questions, grade)
     
     return {"generated_text": generated_text}
 

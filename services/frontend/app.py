@@ -1,3 +1,4 @@
+import json
 import requests
 import streamlit as st
 
@@ -22,7 +23,7 @@ st.title("Question Generator")
 subject = st.selectbox("Select Subject", ["Kémia"])
 
 # Grade
-grade = st.selectbox("Select Grade", ["Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8"])
+grade = st.selectbox("Select Grade", ["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"])
 
 # List of topics
 topic_list = [
@@ -57,7 +58,14 @@ if st.button("Submit"):
     }
     response = requests.post(f"{backend_url}/generate_composition", json=payload)
     if response.status_code == 200:
-        generated_text = response.json().get('generated_text', '')
+        generated_text_json = response.json().get('generated_text', '')
+        # st.write(generated_text_json)
+        generated_text = json.loads(generated_text_json)
         st.write(generated_text)
+        for question in generated_text['questions']:
+            st.markdown(f"**{question['question_number']}. {question['question_text']}**")
+        #     if 'choices' in question:
+        #         choices = '\n'.join([f"{chr(i + 65)}. {choice}" for i, choice in enumerate(question['choices'])])
+        #         st.text_area("", value=choices, height=100)
     else:
         st.write("An error occurred.")

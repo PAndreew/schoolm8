@@ -13,7 +13,7 @@ from services.text_extraction import extract_text, extract_book_title_from_path
 from services.text_normalization import unicode_normalize, remove_non_unicode, lowercase
 from services.text_analysis import tokenize, remove_stopwords, remove_punctuation, lemmatize, clean_text, remove_emails, remove_numbers, remove_urls
 from services.vectorization import perform_lda, generate_vector_representation, extract_topics
-from services.llm_generation import generate_composition_questions
+from services.llm_generation import generate_composition_questions, compile_prompts
 # from services.search_service import perform_search
 from fastapi.responses import JSONResponse
 from typing import Optional, List
@@ -21,6 +21,7 @@ import logging
 import uuid
 import uvicorn
 import sys
+from utils import calculate_price, num_tokens_from_string
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +96,18 @@ async def generate_composition(request: CompositionRequest):
     type_of_questions = request.type_of_questions
     grade = request.grade
 
-    generated_text = generate_composition_questions(topics, number_of_questions, type_of_questions, grade)
+    system_prompt, user_prompt = compile_prompts(topics, number_of_questions, type_of_questions, grade)
+
+    system_token_count = num_tokens_from_string(system_prompt, "gpt-3.5-turbo")
+    user_token_count = num_tokens_from_string(user_prompt, "gpt-3.5-turbo")
+    input_token_count = system_token_count+user_token_count
+
+
+    generated_text = generate_composition_questions(system_prompt, user_prompt)
+
+    output_token_count = num_tokens_from_string(generated_text, "gpt-3.5-turbo")
+
+    print(calculate_price(input_token_count, output_token_count))
     
     return {"generated_text": generated_text}
 

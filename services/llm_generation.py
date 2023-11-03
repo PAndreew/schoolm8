@@ -4,13 +4,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-def generate_composition_questions(topics, number_of_questions, type_of_questions, grade):
-    openai.api_key = os.getenv("OPENAI_API_KEY")
-
+def compile_prompts(topics, number_of_questions, type_of_questions, grade):
+    """Prepare input prompts for the model. 
+    It's necessary because the price shall be calculated separately for input and output."""
     json_example = '''{
-    "timestamp": "2023-10-26T14:30:00Z",
-    "book_id": "123456789",
-    "grade": 9,
     "questions": [
         {
         "question_number": 1,
@@ -31,23 +28,30 @@ def generate_composition_questions(topics, number_of_questions, type_of_question
         }
     ]
     }'''
+    
+    user_prompt = f"Based on the provided topics: {topics} generate {number_of_questions} questions of type {type_of_questions} for {grade} students."
+    system_prompt = f"You are a helpful educational assistant. \
+            Your mission is to create engaging and fun school compositions. \
+            Your exercises test the students' understanding of the topics from different angles. \
+            You ALWAYS create the questions in Hungarian. \
+            You ALWAYS respond in valid JSON format. \
+            Here's a good example: {json_example}"
 
-    prompt = f"As an AI trained in educational assistance, I am tasked with helping students create school compositions. \
-    Based on the provided topics: {topics}, I shall generate {number_of_questions} questions of type {type_of_questions} for {grade} students to assist in writing a composition. \
-    I shall ALWAYS create the questions in Hungarian. \
-    I shall ALWAYS respond in valid JSON format. \
-    Here's a good example: {json_example}"
+    return system_prompt, user_prompt
 
+def generate_composition_questions(system_prompt, user_prompt):
+    openai.api_key = os.getenv("OPENAI_API_KEY")
 
     response = openai.ChatCompletion.create(  
       model="gpt-3.5-turbo",
       messages=[{
           "role": "system",
-          "content": "You are a helpful assistant."
-      },{
+          "content": system_prompt
+        },
+        {
           "role": "user",
-          "content": prompt
-      }]
+          "content": user_prompt
+        }]
     )
 
     return response['choices'][0]['message']['content'].strip()
